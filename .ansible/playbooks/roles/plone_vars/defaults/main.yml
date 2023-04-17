@@ -183,7 +183,20 @@ cops_plone_dotenv_defaults: |-
   CONTROL_COMPOSE_FILES={{cops_plone_compose_files|join(' ')}}
   COMPOSE_FILE={{cops_plone_compose_files|join(':')}}
   PLONE__DOC_PROTECT_USER={{cops_plone_doc_protect_user}}
-  PLONE__DOC_PROTECT_PASSWORD={{cops_plone_doc_protect_password}}
+  crons_plone_restart={{cops_plone_has_restart_cron}}
+  crons_plone_restart_periodicity={{crons_plone_restart_periodicity}}
+  crons_plone_pack_periodicity={{crons_plone_pack_periodicity}}
+  crons_plone_backup_periodicity={{crons_plone_backup_periodicity}}
+  crons_plone_pack={{cops_plone_has_pack_cron}}
+  crons_plone_backup={{cops_plone_has_backup_cron}}
+crons_plone_restart_periodicity: "50 23 5 * *"
+crons_plone_pack_periodicity: "0 5 * * *"
+crons_plone_backup_periodicity: "0 2 * * *"
+crons_plone_restart_user: "root"
+cops_plone_cron_autorestarted_services: db backup plone cron nginx
+cops_plone_has_restart_cron: "true"
+cops_plone_has_pack_cron: "true"
+cops_plone_has_backup_cron: "true"
 cops_plone_dotenv_extra: ""
 cops_plone_dotenv: |
   {{cops_plone_dotenv_defaults}}

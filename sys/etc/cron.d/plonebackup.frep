@@ -6,11 +6,8 @@ LOGS={{$bd}}/data/logs/cron
 MAILTO=""
 
 {{ (((.Env.crons_plone_pack | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_pack_periodicity    | default "0 7 5 * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/pack.log;fi;date -Iseconds>>$CRONLOG"
+{{    .Env.crons_plone_pack_periodicity    | default "0 5 * * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/pack.log;fi;date -Iseconds>>$CRONLOG"
 
 {{ (((.Env.crons_plone_backup | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_backup_periodicity  | default "0 7 5 * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/backup.log;fi;date -Iseconds>>$CRONLOG"
-
-{{ (((.Env.crons_plone_restart | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_restart_periodicity | default "0 7 5 * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/restart.log;fi;date -Iseconds>>$CRONLOG"
+{{    .Env.crons_plone_backup_periodicity  | default "0 2 * * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/backup.log;fi;date -Iseconds>>$CRONLOG"
 

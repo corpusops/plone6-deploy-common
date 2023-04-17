@@ -173,3 +173,21 @@
     set -ex
     cd "{{cops_plone_dir}}"
     {{cops_plone_dc}} run --rm -T -u root --entrypoint bash plone -ec "rm -f {{cops_plone_maintenance_flags_dir}}/SUSPEND_CRONS"
+
+# plone specific
+- file:
+    state: absent
+    path: "/etc/cron.d/plone-backup-{{cops_plone_name}}"
+  when: ["not cops_plone_has_restart_cron"]
+- copy:
+    force: true
+    mode: "0644"
+    path: "/etc/cron.d/plone-backup-{{cops_plone_name}}"
+    content: |-
+       #
+       MAILTO=
+       PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+       {{crons_plone_restart_periodicity}} {{crons_plone_restart_user}} /bin/bash -exc "( cd {{cops_plone_dir}} && ./control.sh up -d --no-deps --force-recreate {{cops_plone_cron_autorestarted_services) &>/dev/null; )"
+       #
+    path: "/etc/cron.d/plone{{cops_plone_name}}backup"
+
