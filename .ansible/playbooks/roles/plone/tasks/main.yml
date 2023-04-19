@@ -9,18 +9,15 @@
     path: "{{item}}"
   loop:
   - "{{cops_plone_dir}}"
-  - "{{cops_plone_dir}}/local/postgresql/data"
-  - "{{cops_plone_dir}}/local/backup"
-  - "{{cops_plone_dir}}/local/backup/data"
-  - "{{cops_plone_dir}}/local/backup/setup"
   tags: [plone_layout_dirs]
 - when: cops_plone_rsync_password and cops_plone_rsync_escalate
+  become: false
   delegate_to: "localhost"
   copy:
     dest: "{{cops_plone_rsync_rsh_wrapper_path}}"
     content: "{{cops_plone_rsync_rsh_wrapper}}"
     force: true
-    mode: "0750"
+    mode: "0755"
 - name: Synchronise files inside the environment (deleguation)
   delegate_to: "localhost"
   environment: "{{cops_plone_rsync_env}}"
@@ -182,12 +179,10 @@
 - copy:
     force: true
     mode: "0644"
-    path: "/etc/cron.d/plone-backup-{{cops_plone_name}}"
+    dest: "/etc/cron.d/plone-backup-{{cops_plone_name}}"
     content: |-
        #
        MAILTO=
        PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
-       {{crons_plone_restart_periodicity}} {{crons_plone_restart_user}} /bin/bash -exc "( cd {{cops_plone_dir}} && ./control.sh up -d --no-deps --force-recreate {{cops_plone_cron_autorestarted_services) &>/dev/null; )"
+       {{crons_plone_restart_periodicity}} {{crons_plone_restart_user}} /bin/bash -exc "( cd {{cops_plone_dir}} && ./control.sh up -d --no-deps --force-recreate {{cops_plone_cron_autorestarted_services}}) &>/dev/null; )"
        #
-    path: "/etc/cron.d/plone{{cops_plone_name}}backup"
-
