@@ -74,4 +74,5 @@ RUN --mount=type=bind,from=final,target=/s \
     ;do if [ -e /s${i} ] || [ -h /s${i} ];then rsync -aAH --numeric-ids /s${i} ${i};fi;done
 ADD --chown=${APP_TYPE}:${APP_TYPE} .git                         $BASE_DIR/.git
 # image will drop privileges itself using gosu at the end of the entrypoint
+ENTRYPOINT []
 CMD "/zeo-init.sh"
