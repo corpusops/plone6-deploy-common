@@ -126,7 +126,7 @@ RUN \
     && apt-get update  -qq \
     && sed -i -re "s/(python-?)[0-9]\.[0-9]+/\1$PY_VER/g" apt.txt \
     && apt-get install -qq -y --no-install-recommends $(sed -re "/$DEV_DEPENDENCIES_PATTERN/,$ d" apt.txt|grep -vE "^\s*#"|tr "\n" " " ) \
-    && printf "${BUILDOUT_REQ}\n${MXDEV_REQ}\n${SETUPTOOLS_REQ}\n${PIP_REQ}\n${WHEEL_REQ}\n\n" > pip_reqs.txt \
+    && printf "virtualenv\n${MXDEV_REQ}\n${SETUPTOOLS_REQ}\n${PIP_REQ}\n${WHEEL_REQ}\n\n" > pip_reqs.txt \
     && : "$(date) end" \
     '
 
@@ -226,10 +226,11 @@ RUN \
 
 ADD --chown=${APP_TYPE}:${APP_TYPE} local/${APP_TYPE}-deploy-common/  $BASE_DIR/local/${APP_TYPE}-deploy-common/
 ADD $BUILDOUT .
-RUN set -e \
-    && bash -c 'set -exo pipefail \
-    && : "add collective.recipe.backup scripts to ease plone backups" \
-    && . bin/activate && buildout -c $BUILDOUT \
+RUN gosu $APP_USER bash -c 'set -exo pipefail \
+    && : "add collective.recipe.backup scripts to ease plone backups (need a separate venv not to conflict)" \
+    && bin/virtualenv ~plone/buildout \
+    && ~plone/buildout/bin/python -m pip install $BUILDOUT_REQ \
+    && ~plone/buildout/bin/buildout -c $BUILDOUT \
     '
 
 FROM appsetup AS final
