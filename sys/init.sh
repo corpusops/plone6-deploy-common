@@ -166,7 +166,7 @@ _shell() {
 
 #  configure: generate configs from template at runtime
 configure() {
-    if [[ -n $NO_CONFIGURE ]];then return 0;fi
+    if [[ -n ${NO_CONFIGURE-} ]];then return 0;fi
     for i in $USER_DIRS;do
         if [ ! -e "$i" ];then mkdir -p "$i" >&2;fi
         chown $APP_USER:$APP_GROUP "$i"
@@ -215,6 +215,7 @@ configure() {
         frep "$i:/$d" --overwrite
     done
     cd - >/dev/null 2>&1
+    write_inituser
 }
 
 #  services_setup: when image run in daemon mode: pre start setup like database migrations, etc
@@ -315,10 +316,19 @@ If NO_START is set: start an infinite loop doing nothing (for dummy containers i
   exit 0
 }
 
+write_inituser() {
+    if [[ -n ${NO_INITUSER-} ]];then return 0;fi
+    if [[ -n \"$PLONE_ADMIN_PASSWORD\" ]];then
+        python -c "from Zope2.utilities.mkwsgiinstance import write_inituser;\
+            write_inituser('inituser', 'admin', '$PLONE_ADMIN_PASSWORD')"
+    fi
+}
+
 do_fg() {
+    write_inituser
     gosu $APP_USER bash -c "set -ex\
-    && export TYPE=$PLONE_TYPE SITE=$PLONE_SITE PROFILES=$PLONE_PROFILES;\
-    exec ./docker-entrypoint.sh start"
+    && export TYPE=$PLONE_TYPE SITE=$PLONE_SITE PROFILES=$PLONE_PROFILES \
+    && exec ./docker-entrypoint.sh start"
 }
 
 execute_hooks() {
