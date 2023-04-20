@@ -42,6 +42,7 @@ cops_plone_db_mode: "zeo"
 cops_plone_db_host: "db"
 cops_plone_db_port: "8100"
 cops_plone_db_user: "secretJFCxwPHz99R9jIi"
+cops_plone_admin_password: "secret8l2miyHke3LVzxd"
 cops_plone_db_password: "secret4gzQNe3c8851VOJ"
 cops_plone_db_name: "{{cops_plone_name}}"
 cops_plone_build_args: "--no-cache plone cron"
@@ -124,6 +125,7 @@ cops_plone_dotenv_defaults: |-
   PLONE__COPS_ALL_HOSTNAMES={{cops_plone_hostnames}}
   NGINX_SERVERNAME={{cops_plone_hostname}}
   NGINX_SERVER_ALIASES={{cops_plone_alternate_hostnames|join(' ')}}
+  PLONE_ADMIN_PASSWORD={{cops_plone_admin_password}}
   NGINX_REDIRECT_SERVER_ALIASES={{cops_plone_redirect_server_aliases}}
   {% if cops_plone_devmode %}
   PLONE__DEBUG=y
