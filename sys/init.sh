@@ -116,6 +116,7 @@ export ZEO_ADDRESS="${ZEO_ADDRESS:-"db:8100"}"
 if [[ -z ${RELSTORAGE_DSN} ]];then unset RELSTORAGE_DSN;fi
 if [[ -z ${ZEO_ADDRESS} ]];then unset ZEO_ADDRESS;fi
 
+export PLONE_ADMIN_PASSWORD="${PLONE_ADMIN_PASSWORD:-admin}"
 export PLONE_PROFILES="${PLONE_PROFILES:-}"
 export PLONE_TYPE="${PLONE_TYPE:-classic}"
 export PLONE_SITE="${PLONE_SITE:-Plone}"
