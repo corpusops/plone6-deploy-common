@@ -175,13 +175,13 @@ RUN \
     && : "$(date) end"'
 
 # Handle images refresh (rebuild from BASE_IMAGE where BASE_IMAGE is an older version of this image)
-RUN for i in keys/* $DOCS_FOLDERS init sys local/${APP_TYPE}-deploy-common .git public/static/* src.ext src private \
+RUN for i in keys/* $DOCS_FOLDERS init sys local/${APP_TYPE}-deploy-common .git public/static/* sources src private \
              setup.* *.ini *.rst *.md *.txt README* requirements* \
     ;do if ! ( echo "$i" | egrep -q "pip_reqs.txt" );then ( rm -vrf $i || true );fi;done
 
 
 # Install now app deps without editable filter
-ADD --chown=${APP_TYPE}:${APP_TYPE} src.ext src.ext/
+ADD --chown=${APP_TYPE}:${APP_TYPE} sources sources/
 # warning: requirements adds are done via the *txt glob
 ADD --chown=${APP_TYPE}:${APP_TYPE} setup.* *.ini *.rst *.md *.txt README* requirements* ./
 # only bring minimal app for now as we get only deps (CI optims)
