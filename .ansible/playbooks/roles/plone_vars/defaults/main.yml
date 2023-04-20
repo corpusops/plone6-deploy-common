@@ -84,7 +84,6 @@ cops_plone_dc:
   docker-compose {% for i in cops_plone_compose_files %} -f {{i}}{% endfor %}
   -p "{{cops_plone_composename}}"
 cops_plone_default_from_email: noreply@{{cops_plone_hostname}}
-cops_plone_server_email: "{{cops_plone_default_from_email}}"
 cops_plone_mailcatcher_user: mailcatcher
 cops_plone_mailcatcher_password: mailcatcher
 cops_plone_email_server: mailcatcher
@@ -117,6 +116,7 @@ cops_plone_docker_env_defaults: ""
 cops_plone_redirect_server_aliases: "off"
 cops_plone_zeo_address: "{{cops_plone_db_host}}:{{cops_plone_db_port}}"
 cops_plone_backup_keep_days: "2"
+cops_plone_default_from: "Administrator"
 # free form for params inside dockerenv
 cops_plone_dotenv_defaults: |-
   {% set db_mode = cops_plone_db_mode%}
@@ -130,8 +130,8 @@ cops_plone_dotenv_defaults: |-
   {% if cops_plone_devmode %}
   PLONE__DEBUG=y
   {% endif %}
+  PLONE__DEFAULT_FROM={{ cops_plone_default_from}}
   PLONE__DEFAULT_FROM_EMAIL={{ cops_plone_default_from_email }}
-  PLONE__SERVER_EMAIL={{ cops_plone_server_email }}
   PLONE__EMAIL_HOST={{cops_plone_email_server}}
   {% if "{0}".format(cops_plone_email_use_tls).lower() in ['yes', 'no'] %}
   PLONE__EMAIL_USE_TLS={{cops_plone_email_use_tls}}
