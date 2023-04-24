@@ -186,5 +186,5 @@
        PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
        CRONLOG={{cops_plone_dir}}/data/logs/cron.log
        SC={{cops_plone_dir}}/data/flags/SUSPEND_CRONS
-       {{crons_plone_restart_periodicity}} {{crons_plone_restart_user}} /bin/bash -exc "date -Iseconds>>$CRONLOG;( cd {{cops_plone_dir}} && if [ ! -e $SC ] ;then./control.sh up --no-deps --force-recreate {{cops_plone_cron_autorestarted_services}}) &>$CRONLOG;fi;date -Iseconds>>$CRONLOG;"
+       {{crons_plone_restart_periodicity}} {{crons_plone_restart_user}} /bin/bash -exc "date -Iseconds>>$CRONLOG;( cd {{cops_plone_dir}} && if [ ! -e $SC ] ;then ./control.sh up --no-deps --force-recreate {{cops_plone_cron_autorestarted_services}} &>$CRONLOG;fi;date -Iseconds>>$CRONLOG; )"
        #
