@@ -129,6 +129,8 @@ export CORS_ALLOW_CREDENTIALS="${CORS_ALLOW_CREDENTIALS:-"true"}"
 export CORS_EXPOSE_HEADERS="${CORS_EXPOSE_HEADERS:-"Content-Length,X-My-Header"}"
 export CORS_ALLOW_HEADERS="${CORS_ALLOW_HEADERS:-"Authorization,Content-Type,Accept,Origin,User-Agent,DNT,Cache-Control,X-Mx-ReqToken,Keep-Alive,X-Requested-With,If-Modified-Since"}"
 export CORS_MAX_AGE="${CORS_MAX_AGE:-"3600"}"
+# 10TB should be enougth
+export MAX_REQUEST_BODY_SIZE="${MAX_REQUEST_BODY_SIZE:-"$((10*1024*1024*1024*1024))"}"
 
 # tox variables
 export TOX_DIRECT=${TOX_DIRECT-1}
@@ -217,6 +219,10 @@ configure() {
     done
     cd - >/dev/null 2>&1
     write_inituser
+    if [ -e etc/zope.ini ];then
+        debuglog "Patching zope.ini/max_request_body_size: $MAX_REQUEST_BODY_SIZE"
+        sed -i -re "s/(max_request_body_size = ).*/\1$MAX_REQUEST_BODY_SIZE/g"  etc/zope.ini
+    fi
 }
 
 #  services_setup: when image run in daemon mode: pre start setup like database migrations, etc
