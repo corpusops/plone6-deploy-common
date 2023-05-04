@@ -223,6 +223,9 @@ configure() {
         debuglog "Patching zope.ini/max_request_body_size: $MAX_REQUEST_BODY_SIZE"
         sed -i -re "s/(max_request_body_size = ).*/\1$MAX_REQUEST_BODY_SIZE/g"  etc/zope.ini
     fi
+    if [ -e init/scripts/rebuild_eea.facetednavigation.sh ];then
+        init/scripts/rebuild_eea.facetednavigation.sh
+    fi
 }
 
 #  services_setup: when image run in daemon mode: pre start setup like database migrations, etc

@@ -278,6 +278,9 @@ RUN set -e \
     && : "latest fixperms" \
     && init/init.sh fixperms'
 
+# eea support
+RUN init/scripts/rebuild_eea.facetednavigation.sh
+
 WORKDIR $BASE_DIR/src
 ARG DBSETUP_SH=https://raw.githubusercontent.com/corpusops/docker-images/master/rootfs/bin/project_dbsetup.sh
 ADD --chmod=755 $DBSETUP_SH $BASE_DIR/bin/
