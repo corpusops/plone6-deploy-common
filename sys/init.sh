@@ -189,7 +189,7 @@ configure() {
     # In dev, regenerate mx_dev checkouts
     if [ -e sources/devmode ];then
         chown -Rf $APP_USER $BASE_DIR/sources
-        vv gosu $APP_USER mxdev -c mx.ini -v --only-fetch
+        vv gosu $APP_USER mxdev -c mx.ini -v -f
     fi
     # copy only if not existing template configs from common deploy project
     # and only if we have that common deploy project inside the image
