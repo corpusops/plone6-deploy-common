@@ -5,12 +5,12 @@
 # export DEBUG=1
 # start by the first one, then try the others
 export SCRIPTSDIR="$(dirname $(readlink -f "$0"))"
-SDEBUG=${SDEBUG-}
-DEBUG=${DEBUG:-${SDEBUG-}}
-# activate shell debug if SDEBUG is set
+PLONE_SDEBUG=${PLONE_SDEBUG-}
+DEBUG=${DEBUG:-${PLONE_SDEBUG-}}
+# activate shell debug if PLONE_SDEBUG is set
 VCOMMAND=""
 DASHVCOMMAND=""
-if [[ -n $SDEBUG ]];then set -x; VCOMMAND="v"; VDEBUG="v"; DASHVCOMMAND="-v";fi
+if [[ -n $PLONE_SDEBUG ]];then set -x; VCOMMAND="v"; VDEBUG="v"; DASHVCOMMAND="-v";fi
 ODIR=$(pwd)
 cd "${TOPDIR:-$SCRIPTSDIR/..}"
 TOPDIR="$(pwd)"
@@ -164,7 +164,7 @@ regen_egg_info() {
 
 #  shell: Run interactive shell inside container
 _shell() {
-    exec gosu ${user:-$APP_USER} $SHELL_EXECUTABLE -$([[ -n ${SSDEBUG:-$SDEBUG} ]] && echo "x" )elc "export PATH=$PATH;${@:-${SHELL_EXECUTABLE}}"
+    exec gosu ${user:-$APP_USER} $SHELL_EXECUTABLE -$([[ -n ${SPLONE_SDEBUG:-$PLONE_SDEBUG} ]] && echo "x" )elc "export PATH=$PATH;${@:-${SHELL_EXECUTABLE}}"
 }
 
 #  configure: generate configs from template at runtime
@@ -337,8 +337,10 @@ write_inituser() {
 
 do_fg() {
     write_inituser
-    ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
-    gosu $APP_USER bash -c "set -ex\
+    if ( "x$(ps aufx | grep rsyslog | grep -v grep | wc -l)" != "x0" );then
+        ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
+    fi
+    exec gosu $APP_USER bash -c "set -e\
     && export TYPE=$PLONE_TYPE SITE=$PLONE_SITE PROFILES=$PLONE_PROFILES \
     && exec ./docker-entrypoint.sh start"
 }
