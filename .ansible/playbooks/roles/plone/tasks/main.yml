@@ -182,7 +182,7 @@
     dest: "/etc/cron.d/plone-backup-{{cops_plone_name}}"
     content: |-
        #
-       MAILTO=
+       MAILTO=""
        PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
        CRONLOG={{cops_plone_dir}}/data/logs/cron.log
        SC={{cops_plone_dir}}/data/flags/SUSPEND_CRONS
