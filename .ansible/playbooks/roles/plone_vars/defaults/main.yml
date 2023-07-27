@@ -192,13 +192,15 @@ cops_plone_dotenv_defaults: |-
   PLONE_BACKUP_KEEP_DAYS={{cops_plone_backup_keep_days}}
   PLONE_PACK_DAYS={{cops_plone_backup_pack_days}}
   OLD_BLOB_PATH={{cops_plone_old_blob_path}}
+  OLD_BLOB_ROOT={{cops_plone_old_blob_root}}
   crons_plone_restart={{cops_plone_has_restart_cron}}
   crons_plone_restart_periodicity={{crons_plone_restart_periodicity}}
   crons_plone_pack_periodicity={{crons_plone_pack_periodicity}}
   crons_plone_backup_periodicity={{crons_plone_backup_periodicity}}
   crons_plone_pack={{cops_plone_has_pack_cron}}
   crons_plone_backup={{cops_plone_has_backup_cron}}
-cops_plone_old_blob_path: "/data/oldblob"
+cops_plone_old_blob_root: "{{cops_plone_dir}}/data/oldblob"
+cops_plone_old_blob_path: "{{cops_plone_old_blob_root}}/storage-{{cops_plone_name}}"
 cops_plone_syslog_port: "10514"
 crons_plone_restart_periodicity: "50 23 5 * *"
 crons_plone_pack_periodicity: "0 5 * * *"
