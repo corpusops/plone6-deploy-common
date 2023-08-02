@@ -337,7 +337,7 @@ write_inituser() {
 
 do_fg() {
     write_inituser
-    if ( "x$(ps aufx | grep rsyslog | grep -v grep | wc -l)" != "x0" );then
+    if [ "x$(ps aufx | grep rsyslog | grep -v grep | wc -l)" = "x0" ];then
         ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
     fi
     exec gosu $APP_USER bash -c "set -e\
