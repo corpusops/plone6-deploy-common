@@ -199,6 +199,8 @@ cops_plone_dotenv_defaults: |-
   crons_plone_backup_periodicity={{crons_plone_backup_periodicity}}
   crons_plone_pack={{cops_plone_has_pack_cron}}
   crons_plone_backup={{cops_plone_has_backup_cron}}
+  RSYNC_HARD_LINKS_ON_FIRST_COPY={{cops_plone_rsync_hard_links_on_first_copy}}
+cops_plone_rsync_hard_links_on_first_copy: "True"
 cops_plone_old_blob_root: "{{cops_plone_dir}}/data/oldblob"
 cops_plone_old_blob_path: "{{cops_plone_old_blob_root}}/storage-{{cops_plone_name}}"
 cops_plone_syslog_port: "10514"
