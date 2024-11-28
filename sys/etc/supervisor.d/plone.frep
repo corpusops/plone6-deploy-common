@@ -1,7 +1,7 @@
 
 [program:plone]
 # use gosu to have all plone groups
-command = sh -exc "/init.sh fg"
+command = sh -exc "/init.sh do_fg"
 autostart = true
 autorestart = true
 killasgroup = true

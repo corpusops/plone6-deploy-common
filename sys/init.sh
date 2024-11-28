@@ -41,7 +41,7 @@ DEFAULT_IMAGE_MODE="plone"
 export IMAGE_MODE=${IMAGE_MODE:-${DEFAULT_IMAGE_MODE}}
 SKIP_STARTUP_DB=${SKIP_STARTUP_DB-}
 SKIP_SYNC_DOCS=${SKIP_SYNC_DOCS-}
-IMAGE_MODES="(shell|cron|plone|fg)"
+IMAGE_MODES="(shell|cron|backup|plone|fg)"
 IMAGE_MODES_MIGRATE="(fg|plone)"
 NO_START=${NO_START-}
 PLONE_CONF_PREFIX="${PLONE_CONF_PREFIX:-"PLONE__"}"
@@ -90,7 +90,7 @@ $BASE_DIR/include
 $BASE_DIR/bin
 /compile_mo.py
 "
-FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"/home/$APP_USER/.cache/pip $LOCAL_DIR data $PLONE_LOCATIONS"}"
+FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"/home/$APP_USER/.cache/pip $BASE_DIR/sources $LOCAL_DIR data $PLONE_LOCATIONS"}"
 SKIP_RENDERED_CONFIGS="${SKIP_RENDERED_CONFIGS:-varnish}"
 export HISTFILE="${LOCAL_DIR}/.bash_history"
 export PSQL_HISTORY="${LOCAL_DIR}/.psql_history"
@@ -182,6 +182,11 @@ configure() {
             find "$TOPDIR/setup.py" "$TOPDIR/src" "$TOPDIR/src.ext" \
             -maxdepth 2 -mindepth 0 -name setup.py -type f 2>/dev/null; )
     fi
+    # In dev, regenerate mx_dev checkouts
+    if [ -e sources/devmode ];then
+        chown -Rf $APP_USER $BASE_DIR/sources
+        vv gosu $APP_USER mxdev -c mx.ini -v --only-fetch
+    fi
     # copy only if not existing template configs from common deploy project
     # and only if we have that common deploy project inside the image
     # we first  create missing structure, but do not override yet (no clobber)
@@ -236,15 +241,15 @@ services_setup() {
 
     # Run any migration
     if [[ -z ${NO_MIGRATE} ]];then
-        ( cd $SRC_DIR && gosu $APP_USER ./manage.py migrate --noinput )
+        ( cd $SRC_DIR && gosu $APP_USER echo migrate; )
     fi
     # Compile gettext messages
     if [[ -z ${NO_COMPILE_MESSAGES} ]];then
-        ( cd $SRC_DIR && gosu $APP_USER ./manage.py compilemessages )
+        ( compile_messages; )
     fi
     # Collect statics
     if [[ -z ${NO_COLLECT_STATIC} ]];then
-        ( cd $SRC_DIR && gosu $APP_USER ./manage.py collectstatic --noinput )
+        ( cd $SRC_DIR && gosu $APP_USER echo refresh statics; )
     fi
 }
 
@@ -373,7 +378,7 @@ if [[ -n ${NO_START-} ]];then
     while true;do echo "start skipped" >&2;sleep 65535;done
     exit $?
 fi
-if ( echo $1 | grep -E -q -- "^(${EP_CUSTOM_ACTIONS}fg|usage)$" );then $@;exit $?;fi
+if ( echo $1 | grep -E -q -- "^(${EP_CUSTOM_ACTIONS}do_fg|usage)$" );then $@;exit $?;fi
 # export back the gateway ip as a host if ip is available in container
 if ( ip -4 route list match 0/0 &>/dev/null );then
     if ! (ip -4 route list match 0/0 | awk '{print $3" host.docker.internal"}' >> /etc/hosts );then echo "failed to patch /etc/hosts, continuing anyway";fi
@@ -387,6 +392,8 @@ if [[ $IMAGE_MODE == "pycharm" ]];then
     for i in ${PYCHARM_DIRS};do if [ -e "$i" ];then chown -Rf $APP_USER "$i";fi;done
     exec gosu $APP_USER bash -lc "set -e;cd $ODIR;export PYTHONPATH=\"$OPYPATH:\${PYTHONPATH-}·\";python $cmdargs"
 fi
+
+
 if [[ "${IMAGE_MODE}" != "shell" ]]; then
     if ! ( echo $IMAGE_MODE | grep -E -q "$IMAGE_MODES" );then die "Unknown image mode ($IMAGE_MODES): $IMAGE_MODE";fi
     log "Running in $IMAGE_MODE mode"
@@ -395,6 +402,13 @@ if [[ "${IMAGE_MODE}" != "shell" ]]; then
         ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
         do_fg
     else
+        # we have two types of CRONTABS, one dedicated to backup and one to application
+        if [[ "${IMAGE_MODE}" == "backup"  ]];then
+            rm -fv $(find  /etc/*cron* -name "*plone*" |grep -v backup|xargs rm -rfv)
+            IMAGE_MODE=cron
+        else
+            rm -fv $(find  /etc/*cron* -name "*plone*" |grep    backup|xargs rm -rfv)
+        fi
         cfg="/etc/supervisor.d/$IMAGE_MODE"
         if [ ! -e $cfg ];then die "Missing: $cfg";fi
         SUPERVISORD_CONFIGS="rsyslog $cfg" exec supervisord.sh
@@ -409,4 +423,4 @@ else
     execute_hooks beforeshell "$@"
     ( cd $SRC_DIR && user=$SHELL_USER _shell "$BASE_DIR/docker-entrypoint.sh $cmd" )
 fi
-# vim:set et sts=4 ts=4 tw=80:
+# vim:set et sts=4 ts=4 tw=0:

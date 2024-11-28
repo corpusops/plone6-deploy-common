@@ -15,6 +15,7 @@ ARG \
     BUILD_BASE_IMAGE=plone/server-prod-config:latest \
     BASE_DIR=/app \
     BUILD_DEV= \
+    BUILDOUT=buildout.cfg \
     CFLAGS= \
     C_INCLUDE_PATH=/usr/include/gdal/ \
     CPLUS_INCLUDE_PATH=/usr/include/gdal/ \
@@ -56,6 +57,8 @@ ARG \
     PIP_SRC=$BASE_DIR/pipsrc \
     PSQL_HISTORY="${LOCAL_DIR}/.psql_history" \
     SETUPTOOLS_REQ="setuptools>=${MINIMUM_SETUPTOOLS_VERSION}" \
+    MXDEV_REQ="mxdev" \
+    BUILDOUT_REQ="zc.buildout" \
     STRIP_HELPERS="forego confd remco" \
     WHEEL_REQ="wheel>=${MINIMUM_WHEEL_VERSION}"
 #
@@ -65,9 +68,9 @@ USER root
 # inherit all global args (think to sync this block with runner stage)
 ARG \
     DEBIAN_APT_MIRROR PROD_BASE_IMAGE BUILD_BASE_IMAGE VIRTUAL_ENV BASE_DIR PATH APP_GROUP APP_TYPE APP_USER STRIP_HELPERS \
-    BUILD_DEV DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
+    BUILDOUT DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
     LDFLAGS CFLAGS C_INCLUDE_PATH CPLUS_INCLUDE_PATH CONSTRAINTS PLONE_VERSION CPPLAGS \
-    FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS\
+    FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS MXDEV_REQ BUILDOUT_REQ \
     MINIMUM_PIPENV_VERSION MINIMUM_PIP_VERSION MINIMUM_SETUPTOOLS_VERSION MINIMUM_WHEEL_VERSION \
     PYTHONUNBUFFERED PY_VER DEV_DEPENDENCIES_PATTERN \
     LOCAL_DIR HISTFILE PSQL_HISTORY MYSQL_HISTFILE IPYTHONDIR \
@@ -105,9 +108,10 @@ WORKDIR $BASE_DIR
 USER root
 ADD apt.txt ./
 RUN \
-    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt \
-    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists \
+    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists,sharing=locked \
     bash -c 'set -exo pipefail \
+    && if [ "x${DEBIAN_APT_MIRROR}" != "x" ];then echo "Using DEBIAN_APT_MIRROR: ${DEBIAN_APT_MIRROR}";         sed -i -re "s!(deb(-src)?\s+)http.?[:]//(archives?.(ubuntu.com|debian.org)/(ubuntu|debian)/)!\1${DEBIAN_APT_MIRROR}!g" $(find /etc/apt/sources.list* -type f);fi \
     && if [ "x${DEBIAN_APT_MIRROR}" != "x" ];then echo "Using DEBIAN_APT_MIRROR: ${DEBIAN_APT_MIRROR}";         sed -i -re "s!(deb(-src)?\s+)http.?[:]//(archives?.(ubuntu.com|debian.org)/(ubuntu|debian)/)!\1${DEBIAN_APT_MIRROR}!g" $(find /etc/apt/sources.list* -type f);fi \
     && : "$(date): install packages" \
     && rm -f /etc/apt/apt.conf.d/docker-clean || true;echo "Binary::apt::APT::Keep-Downloaded-Packages \"true\";" > /etc/apt/apt.conf.d/keep-cache \
@@ -122,7 +126,7 @@ RUN \
     && apt-get update  -qq \
     && sed -i -re "s/(python-?)[0-9]\.[0-9]+/\1$PY_VER/g" apt.txt \
     && apt-get install -qq -y --no-install-recommends $(sed -re "/$DEV_DEPENDENCIES_PATTERN/,$ d" apt.txt|grep -vE "^\s*#"|tr "\n" " " ) \
-    && printf "mxdev\n${SETUPTOOLS_REQ}\n${PIP_REQ}\n${WHEEL_REQ}\n\n" > pip_reqs.txt \
+    && printf "${BUILDOUT_REQ}\n${MXDEV_REQ}\n${SETUPTOOLS_REQ}\n${PIP_REQ}\n${WHEEL_REQ}\n\n" > pip_reqs.txt \
     && : "$(date) end" \
     '
 
@@ -154,16 +158,16 @@ FROM base AS appsetup
 # inherit all global args (think to sync this block with runner stage)
 ARG \
     DEBIAN_APT_MIRROR PROD_BASE_IMAGE BUILD_BASE_IMAGE VIRTUAL_ENV BASE_DIR PATH APP_GROUP APP_TYPE APP_USER STRIP_HELPERS \
-    BUILD_DEV DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
+    BUILDOUT DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
     LDFLAGS CFLAGS C_INCLUDE_PATH CPLUS_INCLUDE_PATH CONSTRAINTS PLONE_VERSION CPPLAGS \
-    FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS\
+    FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS MXDEV_REQ BUILDOUT_REQ \
     MINIMUM_PIPENV_VERSION MINIMUM_PIP_VERSION MINIMUM_SETUPTOOLS_VERSION MINIMUM_WHEEL_VERSION \
     PYTHONUNBUFFERED PY_VER DEV_DEPENDENCIES_PATTERN \
     LOCAL_DIR HISTFILE PSQL_HISTORY MYSQL_HISTFILE IPYTHONDIR \
     VSCODE_VERSION WITH_VSCODE DOCS_FOLDERS
 RUN \
-    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt \
-    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists \
+    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists,sharing=locked \
     bash -c 'set -exo pipefail \
     && : "$(date)install dev packages"\
     && apt-get update  -qq \
@@ -220,11 +224,19 @@ RUN \
     && if [ -e requirements-mxdev.txt ];then python -m pip install -r requirements-mxdev.txt;fi \
     && : "$(date) end"'
 
+ADD --chown=${APP_TYPE}:${APP_TYPE} local/${APP_TYPE}-deploy-common/  $BASE_DIR/local/${APP_TYPE}-deploy-common/
+ADD $BUILDOUT .
+RUN set -e \
+    && bash -c 'set -exo pipefail \
+    && : "add collective.recipe.backup scripts to ease plone backups" \
+    && . bin/activate && buildout -c $BUILDOUT \
+    '
+
 FROM appsetup AS final
 # inherit all global args (think to sync this block with runner stage)
 ARG \
     DEBIAN_APT_MIRROR PROD_BASE_IMAGE BUILD_BASE_IMAGE VIRTUAL_ENV BASE_DIR PATH APP_GROUP APP_TYPE APP_USER STRIP_HELPERS \
-    BUILD_DEV DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
+    BUILDOUT DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
     LDFLAGS CFLAGS C_INCLUDE_PATH CPLUS_INCLUDE_PATH CONSTRAINTS PLONE_VERSION CPPLAGS \
     FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS\
     MINIMUM_PIPENV_VERSION MINIMUM_PIP_VERSION MINIMUM_SETUPTOOLS_VERSION MINIMUM_WHEEL_VERSION \
@@ -277,9 +289,9 @@ FROM $PROD_BASE_IMAGE AS runner
 # inherit all global args (think to sync this block with runner stage)
 ARG \
     DEBIAN_APT_MIRROR PROD_BASE_IMAGE BUILD_BASE_IMAGE VIRTUAL_ENV BASE_DIR PATH APP_GROUP APP_TYPE APP_USER STRIP_HELPERS \
-    BUILD_DEV DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
+    BUILDOUT DEBIAN_FRONTEND HOST_USER_UID LANG LANGUAGE TZ \
     LDFLAGS CFLAGS C_INCLUDE_PATH CPLUS_INCLUDE_PATH CONSTRAINTS PLONE_VERSION CPPLAGS \
-    FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS\
+    FORCE_PIP FORCE_PIPENV WHEEL_REQ PIPENV_REQ PIP_REQ PIP_SRC SETUPTOOLS_REQ REQS DEV_REQS MXDEV_REQ BUILDOUT_REQ \
     MINIMUM_PIPENV_VERSION MINIMUM_PIP_VERSION MINIMUM_SETUPTOOLS_VERSION MINIMUM_WHEEL_VERSION \
     PYTHONUNBUFFERED PY_VER DEV_DEPENDENCIES_PATTERN \
     LOCAL_DIR HISTFILE PSQL_HISTORY MYSQL_HISTFILE IPYTHONDIR \
@@ -322,8 +334,8 @@ ADD apt.txt ./
 # So we need to sync the two blocks with the two initial blocks on the builder image
 # to have the same layout prerequisites and initial packages installed in both images
 RUN \
-    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt \
-    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists \
+    --mount=type=cache,id=cops${BASE}apt,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=cops${BASE}list,target=/var/lib/apt/lists,sharing=locked \
     bash -c 'set -exo pipefail \
     && if [ "x${DEBIAN_APT_MIRROR}" != "x" ];then echo "Using DEBIAN_APT_MIRROR: ${DEBIAN_APT_MIRROR}";         sed -i -re "s!(deb(-src)?\s+)http.?[:]//(archives?.(ubuntu.com|debian.org)/(ubuntu|debian)/)!\1${DEBIAN_APT_MIRROR}!g" $(find /etc/apt/sources.list* -type f);fi \
     && : "$(date): install packages" \
