@@ -1,0 +1,4 @@
+pygments
+sphinx-rtd-theme
+sphinx
+-r ../requirements/requirements.txt

@@ -1,0 +1,17 @@
+
+[program:zeotail]
+command = sh -xec "for log in $ZEO_LOGFILES;do if [ -e $log ];then ( while true;do sleep 1;tail -f $log;done; )&fi;done"
+autostart = true
+autorestart = true
+killasgroup = true
+stopasgroup = true
+directory = {{.Env.BASE_DIR}}
+stopsignal = KILL
+stopwaitsecs = 3
+stdout_logfile = /dev/stdout
+stderr_logfile = /dev/stderr
+stdout_logfile_maxbytes = 0
+stderr_logfile_maxbytes = 0
+stdout_logfile_backups = 0
+stderr_logfile_backups = 0
+
