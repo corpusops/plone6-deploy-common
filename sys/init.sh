@@ -4,14 +4,13 @@
 # export SHELL_DEBUG=1
 # export DEBUG=1
 # start by the first one, then try the others
-
+export SCRIPTSDIR="$(dirname $(readlink -f "$0"))"
 SDEBUG=${SDEBUG-}
 DEBUG=${DEBUG:-${SDEBUG-}}
 # activate shell debug if SDEBUG is set
 VCOMMAND=""
 DASHVCOMMAND=""
 if [[ -n $SDEBUG ]];then set -x; VCOMMAND="v"; VDEBUG="v"; DASHVCOMMAND="-v";fi
-SCRIPTSDIR="$(dirname $(readlink -f "$0"))"
 ODIR=$(pwd)
 cd "${TOPDIR:-$SCRIPTSDIR/..}"
 TOPDIR="$(pwd)"
@@ -19,12 +18,6 @@ BASE_DIR="${BASE_DIR:-${TOPDIR}}"
 
 # now be in stop-on-error mode
 set -e
-
-# export back the gateway ip as a host if ip is available in container
-if ( ip -4 route list match 0/0 &>/dev/null );then
-    ip -4 route list match 0/0 | awk '{print $3" host.docker.internal"}' >> /etc/hosts
-fi
-
 PYCHARM_DIRS="${PYCHARM_DIRS:-"/opt/pycharm /opt/.pycharm /opt/.pycharm_helpers"}"
 OPYPATH="${PYTHONPATH-}"
 for i in $PYCHARM_DIRS;do if [ -e "$i" ];then IMAGE_MODE="${FORCE_IMAGE_MODE-pycharm}";break;fi;done
@@ -43,21 +36,15 @@ if [[ -z "${SRC_DIR}" ]];then
     if [ -e "${TOPDIR}/${SRC_DIR_NAME}" ];then SRC_DIR="$TOPDIR/${SRC_DIR_NAME}";fi
 fi
 
-DEFAULT_IMAGE_MODE="gunicorn"
+DEFAULT_IMAGE_MODE="plone"
 
-NO_GUNICORN=${NO_GUNICORN-}
-if [[ -n $NO_GUNICORN ]];then
-    # retro compat with old setups
-    DEFAULT_IMAGE_MODE=fg
-fi
 export IMAGE_MODE=${IMAGE_MODE:-${DEFAULT_IMAGE_MODE}}
 SKIP_STARTUP_DB=${SKIP_STARTUP_DB-}
 SKIP_SYNC_DOCS=${SKIP_SYNC_DOCS-}
-IMAGE_MODES="(shell|cron|gunicorn|fg|celery_worker|celery_beat)"
-IMAGE_MODES_MIGRATE="(fg|gunicorn)"
+IMAGE_MODES="(shell|cron|plone|fg)"
+IMAGE_MODES_MIGRATE="(fg|plone)"
 NO_START=${NO_START-}
 PLONE_CONF_PREFIX="${PLONE_CONF_PREFIX:-"PLONE__"}"
-DEFAULT_NO_MIGRATE=1
 DEFAULT_NO_COMPILE_MESSAGES=
 DEFAULT_NO_STARTUP_LOGS=
 DEFAULT_NO_COLLECT_STATIC=
@@ -80,18 +67,30 @@ SKIP_IMAGE_SETUP="${KIP_IMAGE_SETUP:-""}"
 FORCE_IMAGE_SETUP="${FORCE_IMAGE_SETUP:-"1"}"
 SKIP_SERVICES_SETUP="${SKIP_SERVICES_SETUP-}"
 IMAGE_SETUP_MODES="${IMAGE_SETUP_MODES:-"fg|gunicorn"}"
+EP_CUSTOM_ACTIONS="compile_messages|fixperms|"
 export PIP_SRC=${PIP_SRC:-${BASE_DIR}/pipsrc}
 export LOCAL_DIR="${LOCAL_DIR:-/local}"
 NO_PIPENV_INSTALL=${NO_PIPENV_INSTALL-1}
 PIPENV_INSTALL_ARGS="${PIPENV_INSTALL_ARGS-"--ignore-pipfile"}"
-
 # log to stdout which in turn should log to docker logger, do not store local logs
 export RSYSLOG_LOGFORMAT="${RSYSLOG_LOGFORMAT:-'%timegenerated% %syslogtag% %msg%\\n'}"
 export RSYSLOG_OUT_LOGFILE="${RSYSLOG_OUT_LOGFILE:-n}"
 export RSYSLOG_REPEATED_MSG_REDUCTION="${RSYSLOG_REPEATED_MSG_REDUCTION:-off}"
-
-FINDPERMS_PERMS_DIRS_CANDIDATES="${FINDPERMS_PERMS_DIRS_CANDIDATES:-"public private"}"
-FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"$LOCAL_DIR public private data"}"
+FINDPERMS_PERMS_DIRS_CANDIDATES="${FINDPERMS_PERMS_DIRS_CANDIDATES:-"sys/etc/cron.d"}"
+PLONE_LOCATIONS="
+$BASE_DIR/scripts
+$BASE_DIR/inituser
+$BASE_DIR/etc
+$BASE_DIR/docker-entrypoint.sh
+$BASE_DIR/pyvenv.cfg
+$BASE_DIR/lib64
+$BASE_DIR/lib
+$BASE_DIR/constraints.txt
+$BASE_DIR/include
+$BASE_DIR/bin
+/compile_mo.py
+"
+FINDPERMS_OWNERSHIP_DIRS_CANDIDATES="${FINDPERMS_OWNERSHIP_DIRS_CANDIDATES:-"/home/$APP_USER/.cache/pip $LOCAL_DIR data $PLONE_LOCATIONS"}"
 SKIP_RENDERED_CONFIGS="${SKIP_RENDERED_CONFIGS:-varnish}"
 export HISTFILE="${LOCAL_DIR}/.bash_history"
 export PSQL_HISTORY="${LOCAL_DIR}/.psql_history"
@@ -107,33 +106,30 @@ export HOST_USER_UID="${HOST_USER_UID:-$(id -u $APP_USER)}"
 export INIT_HOOKS_DIR="${INIT_HOOKS_DIR:-${BASE_DIR}/sys/scripts/hooks}"
 export APP_GROUP="${APP_GROUP:-$APP_USER}"
 export EXTRA_USER_DIRS="${EXTRA_USER_DIRS-}"
-export USER_DIRS="${USER_DIRS:-". .tox src public/media data $CRON_LOGS_DIRS $LOCAL_DIR ${EXTRA_USER_DIRS}"}"
+export USER_DIRS="${USER_DIRS:-". .tox src src.ext data /data $CRON_LOGS_DIRS $LOCAL_DIR ${EXTRA_USER_DIRS} /home/${APP_USER}/.ssh /home/${APP_USER}"}"
 export SHELL_USER="${SHELL_USER:-${APP_USER}}" SHELL_EXECUTABLE="${SHELL_EXECUTABLE:-/bin/bash}"
+export SKIP_REGEN_EGG_INFO="${SKIP_REGEN_EGG_INFO-}"
 
-# plone variables
-export GUNICORN_CLASS=${GUNICORN_CLASS:-sync}
-export GUNICORN_EXTRA_ARGS="${GUNICORN_EXTRA_ARGS-}"
-export GUNICORN_WORKERS=${GUNICORN_WORKERS:-4}
-export PLONE_WSGI=${PLONE_WSGI:-project.wsgi}
-export PLONE_LISTEN=${PLONE_LISTEN:-"0.0.0.0:8000"}
+# plone specific settings
+export DB_MODE="${DB_MODE:-zeo}"
+export ZEO_ADDRESS="${ZEO_ADDRESS:-"db:8100"}"
+if [[ -z ${RELSTORAGE_DSN} ]];then unset RELSTORAGE_DSN;fi
+if [[ -z ${ZEO_ADDRESS} ]];then unset ZEO_ADDRESS;fi
 
-# Celery variables
-# export CELERY_SCHEDULER=${CELERY_SCHEDULER:-celery.beat.PersistentScheduler}
-export CELERY_SCHEDULER=${CELERY_SCHEDULER:-plone_celery_beat.schedulers:DatabaseScheduler}
-export CELERY_LOGLEVEL=${CELERY_LOGLEVEL:-info}
-export CELERY_WORKER_POOL=${CELERY_WORKER_POOL:-prefork}
-export CELERY_CONCURRENCY=${CELERY_CONCURRENCY-}
-export PLONE_CELERY=${PLONE_CELERY:-project.celery:app}
-export PLONE_CELERY_BROKER="${PLONE_CELERY_BROKER:-amqp}"
-export PLONE_CELERY_HOST="${PLONE_CELERY_HOST:-celery-broker}"
-export PLONE_CELERY_VHOST="${PLONE_CELERY_VHOST:-}"
-if ( echo "$PLONE_CELERY_BROKER" | grep -E -q "rabbitmq|amqp" );then
-    burl="amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@$PLONE_CELERY_HOST/$PLONE_CELERY_VHOST/"
-elif [[ "$PLONE_CELERY_BROKER" = "redis" ]];then
-    burl="redis://$PLONE_CELERY_HOST/"
-fi
-export PLONE__CELERY_BROKER_URL="${PLONE__CELERY_BROKER_URL:-$burl}"
+export PLONE_PROFILES="${PLONE_PROFILES:-}"
+export PLONE_TYPE="${PLONE_TYPE:-classic}"
+export PLONE_SITE="${PLONE_SITE:-Plone}"
+export ZODB_CACHE_SIZE="${ZODB_CACHE_SIZE:-50000}"
+export ZEO_CLIENT_CACHE_SIZE="${ZEO_CLIENT_CACHE_SIZE:-128MB}"
+# plone cors configuration
+export CORS_ALLOW_ORIGIN="${CORS_ALLOW_ORIGIN:-"*"}"
+export CORS_ALLOW_METHODS="${CORS_ALLOW_METHODS:-"DELETE,GET,OPTIONS,PATCH,POST,PUT"}"
+export CORS_ALLOW_CREDENTIALS="${CORS_ALLOW_CREDENTIALS:-"true"}"
+export CORS_EXPOSE_HEADERS="${CORS_EXPOSE_HEADERS:-"Content-Length,X-My-Header"}"
+export CORS_ALLOW_HEADERS="${CORS_ALLOW_HEADERS:-"Accept,Authorization,Content-Type,X-Custom-Header,Lock-Token"}"
+export CORS_MAX_AGE="${CORS_MAX_AGE:-"3600"}"
 
+# tox variables
 export TOX_DIRECT=${TOX_DIRECT-1}
 export TOX_DIRECT_YOLO=${TOX_DIRECT_YOLO-1}
 if [[ -z "$TOX_DIRECT_YOLO" ]];then unset TOX_DIRECT_YOLO;fi
@@ -179,31 +175,31 @@ configure() {
     for i in $IPYTHONDIR;do if [ ! -e "$i" ];then mkdir -pv "$i";fi;done
     for i in $HISTFILE $MYSQL_HISTFILE $PSQL_HISTORY $IPYTHONDIR;do chown -Rf $APP_USER "$i";done
     if (find /etc/sudoers* -type f >/dev/null 2>&1);then chown -Rf root:root /etc/sudoers*;fi
-    # reinstall in develop any missing editable dep in Pipenv
-    if [ -e Pipfile ] && ( grep -E -q  "editable\s*=\s*true" Pipfile ) && [[ -z "$(ls -1 ${PIP_SRC}/ | grep -vi readme)" ]] && [[ "$NO_PIPENV_INSTALL" != "1" ]];then
-        pipenv install $PIPENV_INSTALL_ARGS 1>&2
-    fi
     # regenerate any setup.py found as it can be an egg mounted from a docker volume
     # without having a chance to be built
-    while read f;do regen_egg_info "$f";done < <( \
-        find "$TOPDIR/setup.py" "$TOPDIR/src" "$TOPDIR/lib" \
-        -maxdepth 2 -mindepth 0 -name setup.py -type f 2>/dev/null; )
+    if [[ -z "${SKIP_REGEN_EGG_INFO-}" ]];then
+        while read f;do regen_egg_info "$f";done < <( \
+            find "$TOPDIR/setup.py" "$TOPDIR/src" "$TOPDIR/src.ext" \
+            -maxdepth 2 -mindepth 0 -name setup.py -type f 2>/dev/null; )
+    fi
     # copy only if not existing template configs from common deploy project
     # and only if we have that common deploy project inside the image
     # we first  create missing structure, but do not override yet (no clobber)
     # then override files if they have no pretendants in project customizations
     if [ ! -e init/etc ];then mkdir -pv init/etc;fi
-    for i in local/*deploy-common/etc local/*deploy-common/sys/etc;do
-        if [ -d $i ];then
-            cp -rf${VCOMMAND} $i/. init/etc
-            while read conffile;do
-                if [ ! -e sys/etc/$conffile ];then
-                    cp -f${VCOMMAND} $i/$conffile init/etc/$conffile
-                fi
-            done < <(cd $i && find -type f|sed -re "s/\.\///g")
-        fi
+    for j in etc scripts;do
+        for i in local/*deploy-common/$j local/*deploy-common/sys/$j sys/$j;do
+            if [ -d $i ];then
+                if [ ! -e init/$j ];then mkdir -pv init/$j;fi
+                cp -rf${VCOMMAND} $i/. init/$j
+                while read conffile;do
+                    if [ ! -e sys/$j/$conffile ];then
+                        cp -f${VCOMMAND} $i/$conffile init/$j/$conffile
+                    fi
+                done < <(cd $i && find -type f|sed -re "s/\.\///g")
+            fi
+        done
     done
-    cp -rf$VCOMMAND sys/etc/. init/etc
     # install with frep any template file to / (eg: logrotate & cron file)
     cd init
     for i in $(find etc -name "*.frep" -type f |grep -E -v "${SKIP_RENDERED_CONFIGS}" 2>/dev/null);do
@@ -255,10 +251,19 @@ services_setup() {
 # fixperms: basic file & ownership enforcement
 fixperms() {
     if [[ -n $NO_FIXPERMS ]];then return 0;fi
-	if [ "$(id -u $APP_USER)" != "$HOST_USER_UID" ];then
-	    groupmod -g $HOST_USER_UID $APP_USER
-	    usermod -u $HOST_USER_UID -g $HOST_USER_UID $APP_USER
-	fi
+    for i in sys/ssh;do
+        for j in root ${APP_USER};do
+            h=$(eval echo ~$j)
+            s=$h/.ssh
+            if [ ! -e $s ];then mkdir -pv $s;fi
+            if [ -e $i ];then cp -rfv $i/. $s;fi
+            chmod -R 0700 $s;chown -R $j $s;chown $j $h;while read f;do chmod 0600 "$f";done < <(find $s -type f)
+        done
+    done
+    if [ "$(id -u $APP_USER)" != "$HOST_USER_UID" ];then
+        groupmod -g $HOST_USER_UID $APP_USER
+        usermod -u $HOST_USER_UID -g $HOST_USER_UID $APP_USER
+    fi
     for i in /etc/{crontabs,cron.d} /etc/logrotate.d /etc/supervisor.d;do
         if [ -e $i ];then
             while read f;do
@@ -268,13 +273,19 @@ fixperms() {
         fi
     done
     for i in $USER_DIRS;do if [ -e "$i" ];then chown $APP_USER:$APP_GROUP "$i";fi;done
-    while read f;do chmod 0755 "$f";done < \
+    chmod 2755 $BASE_DIR
+    while read f;do chmod 0755 "$f"&done < \
         <(find $FINDPERMS_PERMS_DIRS_CANDIDATES -type d -not \( -perm 0755 2>/dev/null \) |sort)
-    while read f;do chmod 0644 "$f";done < \
+    while read f;do chmod 0644 "$f"&done < \
         <(find $FINDPERMS_PERMS_DIRS_CANDIDATES -type f -not \( -perm 0644 2>/dev/null \) |sort)
-    while read f;do chown $APP_USER:$APP_USER "$f";done < \
+    while read f;do chown $APP_USER:$APP_USER "$f"&done < \
         <(find $FINDPERMS_OWNERSHIP_DIRS_CANDIDATES \
           \( -type d -or -type f \) -not \( -user $APP_USER -or -group $APP_GROUP \) 2>/dev/null|sort)
+    # plone specific: do not go totally down in data folders for performance !
+    while read f;do chown -v ${APP_USER}:${APP_GROUP} "$f"&done < \
+        <(find /data -not -user ${APP_USER} -maxdepth 2)
+    # end: plone specific
+    wait
 }
 
 #  usage: print this help
@@ -301,8 +312,9 @@ If NO_START is set: start an infinite loop doing nothing (for dummy containers i
 }
 
 do_fg() {
-    #
-    cd $SRC_DIR && exec gosu $APP_USER ./manage.py runserver $PLONE_LISTEN
+    gosu $APP_USER bash -c "set -ex\
+    && export TYPE=$PLONE_TYPE SITE=$PLONE_SITE PROFILES=$PLONE_PROFILES;\
+    exec ./docker-entrypoint.sh start"
 }
 
 execute_hooks() {
@@ -343,11 +355,28 @@ pre() {
     execute_hooks post "$@"
 }
 
-if ( echo $1 | grep -E -q -- "--help|-h|help" );then usage;fi
+compile_messages() {
+    local c=$(pwd)/bin/compile_mo.py
+    if [ -e /compile_mo.py ];then cp /compile_mo.py bin;fi
+    # refresh po's from pot
+    if [[ -n ${UPDATE_POT-} ]] && [ -e update_dist_locale ];then update_dist_locale;fi
+    # patch compile_messages to also build local pots
+    sed -i -re "s:/var/log:/data/logs:" $c
+    if ! (grep -q "itertools" $c );then sed -i -re "s/(import os)/import itertools;import os/g" $c;fi
+    if ! (grep -q "Path('src').resolve" $c );then sed -i -re "s/ (lib_path\.glob.*)$/ itertools.chain(\1,Path('src').resolve().glob('**\/*.po'),Path('src.ext').resolve().glob('**\/*.po'))/g" $c;fi
+    # compiles messages
+    python $c
+}
 
+if ( echo $1 | grep -E -q -- "--help|-h|help" );then set -- usage $@;fi
 if [[ -n ${NO_START-} ]];then
     while true;do echo "start skipped" >&2;sleep 65535;done
     exit $?
+fi
+if ( echo $1 | grep -E -q -- "^(${EP_CUSTOM_ACTIONS}fg|usage)$" );then $@;exit $?;fi
+# export back the gateway ip as a host if ip is available in container
+if ( ip -4 route list match 0/0 &>/dev/null );then
+    if ! (ip -4 route list match 0/0 | awk '{print $3" host.docker.internal"}' >> /etc/hosts );then echo "failed to patch /etc/hosts, continuing anyway";fi
 fi
 
 # only display startup logs when we start in daemon mode and try to hide most when starting an (eventually interactive) shell.
@@ -358,12 +387,12 @@ if [[ $IMAGE_MODE == "pycharm" ]];then
     for i in ${PYCHARM_DIRS};do if [ -e "$i" ];then chown -Rf $APP_USER "$i";fi;done
     exec gosu $APP_USER bash -lc "set -e;cd $ODIR;export PYTHONPATH=\"$OPYPATH:\${PYTHONPATH-}·\";python $cmdargs"
 fi
-
 if [[ "${IMAGE_MODE}" != "shell" ]]; then
     if ! ( echo $IMAGE_MODE | grep -E -q "$IMAGE_MODES" );then die "Unknown image mode ($IMAGE_MODES): $IMAGE_MODE";fi
     log "Running in $IMAGE_MODE mode"
     if [ -e "$STARTUP_LOG" ];then cat "$STARTUP_LOG";fi
     if [[ "$IMAGE_MODE" = "fg" ]]; then
+        ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
         do_fg
     else
         cfg="/etc/supervisor.d/$IMAGE_MODE"
@@ -378,5 +407,6 @@ else
         cmd=$( echo "${cmd}"|sed -r -e "s/-c tests/-exc '.\/manage.py test/" -e "s/$/'/g" )
     fi
     execute_hooks beforeshell "$@"
-    ( cd $SRC_DIR && user=$SHELL_USER _shell "$cmd" )
+    ( cd $SRC_DIR && user=$SHELL_USER _shell "$BASE_DIR/docker-entrypoint.sh $cmd" )
 fi
+# vim:set et sts=4 ts=4 tw=80:

@@ -1,13 +1,12 @@
 
 [program:plone]
 # use gosu to have all plone groups
-command = gosu plone sh -c 'set -ex \
-  && exec gunicorn {{ .Env.PLONE_WSGI }} -w {{ .Env.GUNICORN_WORKERS }} -b {{ .Env.PLONE_LISTEN }} -k {{ .Env.GUNICORN_CLASS }} {{ .Env.GUNICORN_EXTRA_ARGS}}'
+command = sh -exc "/init.sh fg"
 autostart = true
 autorestart = true
 killasgroup = true
 stopasgroup = true
-directory = /code/src
+directory = {{.Env.BASE_DIR}}
 stopsignal = KILL
 stopwaitsecs = 3
 stdout_logfile = /dev/stdout

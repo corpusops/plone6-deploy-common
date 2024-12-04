@@ -1,7 +1,6 @@
 ---
 cops_plone_name: ploneinstance
 cops_plone_project_module_name: "{{cops_plone_name}}"
-cops_plone_settings_module: "{{cops_plone_project_module_name}}.settings.instances.{{cops_plone_deploy_env}}"
 cops_plone_project_dir: "./src/{{cops_plone_project_module_name.replace('.', '/')}}"
 cops_plone_front_dir: "{{cops_plone_project_dir}}"
 # builtin in the image
@@ -24,7 +23,6 @@ cops_plone_dir_default: "/srv/docker/{{cops_plone_name}}"
 cops_plone_dir: "{{cops_plone_dir_default}}"
 cops_plone_hostname: "{{cops_plone_deploy_env}}-{{cops_plone_name}}.{{cops_plone_tld_domain}}"
 cops_plone_alternate_hostnames: [".{{cops_plone_tld_domain}}"]
-cops_plone_secret_key: "SuperSecret"
 cops_plone_gateway: "{{ ansible_default_ipv4.address}}"
 cops_plone_devmode: "{{ansible_connection|default('ssh') in ['local']}}"
 cops_plone_composename: "{{forced_cops_plone_composename|default(cops_plone_devmode and
@@ -40,8 +38,9 @@ cops_plone_api_port: 8000
 cops_plone_api_listen: 127.0.0.1
 cops_plone_http_listen: 0.0.0.0
 #
+cops_plone_db_mode: "zeo"
 cops_plone_db_host: "db"
-cops_plone_db_port: "5432"
+cops_plone_db_port: "8100"
 cops_plone_db_user: "secretJFCxwPHz99R9jIi"
 cops_plone_db_password: "secret4gzQNe3c8851VOJ"
 cops_plone_db_name: "{{cops_plone_name}}"
@@ -99,30 +98,27 @@ cops_plone_doc_protect_user: "{{cops_plone_http_protect_user}}"
 cops_plone_doc_protect_password: "{{cops_plone_http_protect_password}}"
 cops_plone_redis_url: "redis://redis:6379/1"
 cops_plone_cors_origin_allow_all: "{{cops_plone_devmode and 'y' or 'n' }}"
-cops_plone_hosts_whitelist: "{{(
+cops_plone_hosts_whitelist: "{{ (cops_plone_cors_origin_allow_all=='y' and '*' or (
     [cops_plone_hostname, '0.0.0.0', '.{0}'.format(cops_plone_hostname)]+
     cops_plone_alternate_hostnames
-  )|join('-|_')}}"
+  )|join(',')}}"
 cops_plone_hostnames: "{{cops_plone_hosts_whitelist}}"
 cops_plone_sentry_tags: ["env:{{cops_plone_deploy_env}}"]
 cops_plone_sentry_dsn: ''
 cops_plone_docker_env_freeform: |-
   {{ cops_plone_docker_env_defaults}}
   {{ cops_plone_docker_env_extra}}
-# cops_plone_gunicorn_class: "sync"
-cops_plone_gunicorn_class: "gevent"
-cops_plone_gunicorn_extra_args: ""
 cops_plone_generic_db_mode: postgres
 cops_plone_db_mode: "{{cops_plone_generic_db_mode}}"
 # one of ftp|ssh
 cops_plone_ftp_mode: ftp
 cops_plone_docker_env_defaults: ""
 cops_plone_redirect_server_aliases: "off"
+cops_plone_zeo_address: "{{cops_plone_db_host}}:{{cops_plone_db_port}}"
 # free form for params inside dockerenv
 cops_plone_dotenv_defaults: |-
   # cors
-  PLONE__CORS_ORIGIN_WHITELIST={{cops_plone_hosts_whitelist}}
-  PLONE__CORS_ORIGIN_ALLOW_ALL={{cops_plone_cors_origin_allow_all}}
+  CORS_ALLOW_ORIGIN={{cops_plone_hosts_whitelist}}
   PLONE__COPS_ALL_HOSTNAMES={{cops_plone_hostnames}}
   NGINX_SERVERNAME={{cops_plone_hostname}}
   NGINX_SERVER_ALIASES={{cops_plone_alternate_hostnames|join(' ')}}
@@ -144,7 +140,6 @@ cops_plone_dotenv_defaults: |-
   PLONE__EMAIL_HOST_PASSWORD={{cops_plone_email_host_password}}
   {% endif %}
   PLONE__REDIS_URL={{cops_plone_redis_url}}
-  PLONE__ALLOWED_HOSTS={{cops_plone_hosts_whitelist}}
   PLONE__DEPLOY_ENV={{cops_plone_deploy_env}}
   PLONE__HTTP_PROTECT_USER={{cops_plone_http_protect_user}}
   PLONE__HTTP_PROTECT_PASSWORD={{cops_plone_http_protect_password}}
@@ -154,16 +149,14 @@ cops_plone_dotenv_defaults: |-
   PLONE__SENTRY_TAGS={{cops_plone_sentry_tags|join(',')}}
   {% endif %}
   # gunicorn
-  GUNICORN_CLASS={{cops_plone_gunicorn_class}}
-  GUNICORN_EXTRA_ARGS={{cops_plone_gunicorn_extra_args}}
   # This need to be changed in production
-  SECRET_KEY={{ cops_plone_secret_key }}
   MAILCATCHER_USER={{cops_plone_mailcatcher_user}}
   MAILCATCHER_PASSWORD={{cops_plone_mailcatcher_password}}
   REDIS_URL={{cops_plone_redis_url}}
   # db
   DBS_DBNAMES={{cops_plone_backuped_dbs}}
   DBS_KEEP_LASTS={{cops_plone_backuped_dbs_keep_lasts}}
+  {% if 'post in db_mode'%}
   POSTGRES_HOST={{ cops_plone_db_host }}
   POSTGRES_PORT={{ cops_plone_db_port }}
   POSTGRES_USER={{ cops_plone_db_user }}
@@ -171,13 +164,15 @@ cops_plone_dotenv_defaults: |-
   POSTGRES_PASSWORD={{cops_plone_db_password }}
   PGPASSWD={{cops_plone_db_password }}
   PGPASSWORD={{cops_plone_db_password }}
+  {% elif 'zeo' in db_mode %}
+  ZEO_ADDRESS={{cops_plone_zeo_address}}
+  {% endif %}
   PLONE__HTTP_LISTEN={{cops_plone_http_listen}}
   PLONE__API_LISTEN={{cops_plone_api_listen}}
   PLONE__HTTP_PORT={{cops_plone_http_port}}
   PLONE__HTTPS_PORT={{cops_plone_https_port}}
   PLONE__API_PORT={{cops_plone_api_port}}
   APP_TYPE=plone
-  PLONE_SETTINGS_MODULE={{cops_plone_settings_module}}
   # builtin in the image
   # PLONE_PY_VER={{ cops_plone_py_ver }}
   PLONE_NAME={{ cops_plone_name }}
@@ -474,12 +469,7 @@ teleport_pg_restore_flags: >-
   {% if teleport_pg_restore_clean%}--clean --if-exists{%endif%}
 teleport_pg_restore: |-
   {% if teleport_pg_restore_drop_db%}
-  ( LANG=C dropdb -U \$POSTGRES_USER \$POSTGRES_DB 2>&1 || /bin/true; ) \
-  | ( grep -E -v exist || /bin/true )
-  createdb -U \$POSTGRES_USER -O \$POSTGRES_USER -E {{teleport_db_encoding}} \
-    \$POSTGRES_DB
   {%endif%}
-  zcat {{teleport_paths_dest_dump_file}}|pg_restore {{teleport_pg_restore_flags}}
 teleport_reset_db_script_restore_postgres: |-
   set -ex
   cd "{{teleport_wd}}"
