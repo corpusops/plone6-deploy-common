@@ -116,6 +116,8 @@ export ZEO_ADDRESS="${ZEO_ADDRESS:-"db:8100"}"
 if [[ -z ${RELSTORAGE_DSN} ]];then unset RELSTORAGE_DSN;fi
 if [[ -z ${ZEO_ADDRESS} ]];then unset ZEO_ADDRESS;fi
 
+export DEFAULT_PLONE_BACKUP_KEEP_DAYS="${DEFAULT_PLONE_BACKUP_KEEP_DAYS:-77}"
+export PLONE_BACKUP_KEEP_DAYS="${PLONE_BACKUP_KEEP_DAYS:-2}"
 export PLONE_PROFILES="${PLONE_PROFILES:-}"
 export PLONE_TYPE="${PLONE_TYPE:-classic}"
 export PLONE_SITE="${PLONE_SITE:-Plone}"
@@ -161,7 +163,7 @@ regen_egg_info() {
 
 #  shell: Run interactive shell inside container
 _shell() {
-    exec gosu ${user:-$APP_USER} $SHELL_EXECUTABLE -$([[ -n ${SSDEBUG:-$SDEBUG} ]] && echo "x" )elc "${@:-${SHELL_EXECUTABLE}}"
+    exec gosu ${user:-$APP_USER} $SHELL_EXECUTABLE -$([[ -n ${SSDEBUG:-$SDEBUG} ]] && echo "x" )elc "export PATH=$PATH;${@:-${SHELL_EXECUTABLE}}"
 }
 
 #  configure: generate configs from template at runtime
@@ -215,7 +217,12 @@ configure() {
         frep "$i:/$d" --overwrite
     done
     cd - >/dev/null 2>&1
-
+    # configure backups
+    for i in bin/snapshotbackup bin/fullbackup bin/backup bin/snapshotrestore bin/restore;do
+        if [ -e $i ];then
+            sed -i -re "s/=$DEFAULT_PLONE_BACKUP_KEEP_DAYS,/=$PLONE_BACKUP_KEEP_DAYS,/g;" "$i"
+        fi
+    done
 }
 
 #  services_setup: when image run in daemon mode: pre start setup like database migrations, etc
@@ -421,6 +428,6 @@ else
         cmd=$( echo "${cmd}"|sed -r -e "s/-c tests/-exc '.\/manage.py test/" -e "s/$/'/g" )
     fi
     execute_hooks beforeshell "$@"
-    ( cd $SRC_DIR && user=$SHELL_USER _shell "$BASE_DIR/docker-entrypoint.sh $cmd" )
+    ( cd $BASE_DIR && user=$SHELL_USER _shell "$BASE_DIR/docker-entrypoint.sh $cmd" )
 fi
 # vim:set et sts=4 ts=4 tw=0:
