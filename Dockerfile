@@ -387,4 +387,5 @@ RUN --mount=type=bind,from=final,target=/s \
 WORKDIR $BASE_DIR
 ADD --chown=${APP_TYPE}:${APP_TYPE} .git                         $BASE_DIR/.git
 # image will drop privileges itself using gosu at the end of the entrypoint
+ENTRYPOINT []
 CMD "/init.sh"
