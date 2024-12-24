@@ -2,12 +2,14 @@
 {{- $pp := .Env.PRIVATE_PATH | default ( print $bd "/data/flags" ) }}
 {{- $sc := .Env.SUSPEND_CRONS | default ( print $pp "/SUSPEND_CRONS" ) }}
 PATH={{$bd}}/venv/bin:{{$bd}}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games
-LOGS={{$bd}}/data/logs/cron
+PLOG={{$bd}}/data/logs/cron/cronp.log
+RLOG={{$bd}}/data/logs/cron/cronr.log
+PLONE_PACK_DAYS={{ .Env.PLONE_PACK_DAYS | default "7" }}
 MAILTO=""
 
 {{ (((.Env.crons_plone_pack | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_pack_periodicity    | default "0 5 * * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/pack.log;fi;date -Iseconds>>$CRONLOG"
+{{    .Env.crons_plone_pack_periodicity    | default "0 5 * * *" }} plone /bin/bash -c "date -Iseconds>$RLOG;if [ ! -e {{$sc}} ];then cd /app &&                          bin/fullbackup &>> $RLOG;fi;date -Iseconds>>$RLOG"
 
 {{ (((.Env.crons_plone_backup | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_backup_periodicity  | default "0 2 * * *" }} plone /bin/bash -c "date -Iseconds>$CRONLOG;if [ ! -e {{$sc}} ];then cd /app&&.bin/activate;echo bin/fullbackup &>> $LOGS/backup.log;fi;date -Iseconds>>$CRONLOG"
+{{    .Env.crons_plone_backup_periodicity  | default "0 2 * * *" }} plone /bin/bash -c "date -Iseconds>$PLOG;if [ ! -e {{$sc}} ];then cd /app && bin/zeopack -d $PLONE_PACK_DAYS db:8100 &>> $PLOG;fi;date -Iseconds>>$PLOG"
 

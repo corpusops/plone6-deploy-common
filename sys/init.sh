@@ -116,8 +116,6 @@ export ZEO_ADDRESS="${ZEO_ADDRESS:-"db:8100"}"
 if [[ -z ${RELSTORAGE_DSN} ]];then unset RELSTORAGE_DSN;fi
 if [[ -z ${ZEO_ADDRESS} ]];then unset ZEO_ADDRESS;fi
 
-export DEFAULT_PLONE_BACKUP_KEEP_DAYS="${DEFAULT_PLONE_BACKUP_KEEP_DAYS:-77}"
-export PLONE_BACKUP_KEEP_DAYS="${PLONE_BACKUP_KEEP_DAYS:-2}"
 export PLONE_PROFILES="${PLONE_PROFILES:-}"
 export PLONE_TYPE="${PLONE_TYPE:-classic}"
 export PLONE_SITE="${PLONE_SITE:-Plone}"
@@ -217,12 +215,6 @@ configure() {
         frep "$i:/$d" --overwrite
     done
     cd - >/dev/null 2>&1
-    # configure backups
-    for i in bin/snapshotbackup bin/fullbackup bin/backup bin/snapshotrestore bin/restore;do
-        if [ -e $i ];then
-            sed -i -re "s/=$DEFAULT_PLONE_BACKUP_KEEP_DAYS,/=$PLONE_BACKUP_KEEP_DAYS,/g;" "$i"
-        fi
-    done
 }
 
 #  services_setup: when image run in daemon mode: pre start setup like database migrations, etc
@@ -410,12 +402,7 @@ if [[ "${IMAGE_MODE}" != "shell" ]]; then
         do_fg
     else
         # we have two types of CRONTABS, one dedicated to backup and one to application
-        if [[ "${IMAGE_MODE}" == "backup"  ]];then
-            rm -fv $(find  /etc/*cron* -name "*plone*" |grep -v backup|xargs rm -rfv)
-            IMAGE_MODE=cron
-        else
-            rm -fv $(find  /etc/*cron* -name "*plone*" |grep    backup|xargs rm -rfv)
-        fi
+        rm -fv $(find  /etc/*cron* -name "*plone*" |grep    backup|xargs rm -rfv)
         cfg="/etc/supervisor.d/$IMAGE_MODE"
         if [ ! -e $cfg ];then die "Missing: $cfg";fi
         SUPERVISORD_CONFIGS="rsyslog $cfg" exec supervisord.sh

@@ -1,6 +1,6 @@
 
 [program:zeo]
-command = {{.Env.BASE_DIR}}/start-zeo.sh
+command = gosu plone {{.Env.BASE_DIR}}/start-zeo.sh
 autostart = true
 autorestart = true
 killasgroup = true
