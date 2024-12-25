@@ -101,7 +101,7 @@ cops_plone_cors_origin_allow_all: "{{cops_plone_devmode and 'y' or 'n' }}"
 cops_plone_hosts_whitelist: "{{ (cops_plone_cors_origin_allow_all=='y' and '*' or (
     [cops_plone_hostname, '0.0.0.0', '.{0}'.format(cops_plone_hostname)]+
     cops_plone_alternate_hostnames
-  )|join(',')}}"
+  )|join(','))}}"
 cops_plone_hostnames: "{{cops_plone_hosts_whitelist}}"
 cops_plone_sentry_tags: ["env:{{cops_plone_deploy_env}}"]
 cops_plone_sentry_dsn: ''
@@ -118,6 +118,7 @@ cops_plone_zeo_address: "{{cops_plone_db_host}}:{{cops_plone_db_port}}"
 cops_plone_backup_keep_days: "2"
 # free form for params inside dockerenv
 cops_plone_dotenv_defaults: |-
+  {% set db_mode = cops_plone_db_mode%}
   # cors
   CORS_ALLOW_ORIGIN={{cops_plone_hosts_whitelist}}
   PLONE__COPS_ALL_HOSTNAMES={{cops_plone_hostnames}}
@@ -157,7 +158,7 @@ cops_plone_dotenv_defaults: |-
   # db
   DBS_DBNAMES={{cops_plone_backuped_dbs}}
   DBS_KEEP_LASTS={{cops_plone_backuped_dbs_keep_lasts}}
-  {% if 'post in db_mode'%}
+  {% if 'post' in db_mode%}
   POSTGRES_HOST={{ cops_plone_db_host }}
   POSTGRES_PORT={{ cops_plone_db_port }}
   POSTGRES_USER={{ cops_plone_db_user }}
@@ -173,6 +174,7 @@ cops_plone_dotenv_defaults: |-
   PLONE__HTTP_PORT={{cops_plone_http_port}}
   PLONE__HTTPS_PORT={{cops_plone_https_port}}
   PLONE__API_PORT={{cops_plone_api_port}}
+  SYSLOG_PORT={{cops_plone_syslog_port}}
   APP_TYPE=plone
   # builtin in the image
   # PLONE_PY_VER={{ cops_plone_py_ver }}
@@ -191,6 +193,7 @@ cops_plone_dotenv_defaults: |-
   crons_plone_backup_periodicity={{crons_plone_backup_periodicity}}
   crons_plone_pack={{cops_plone_has_pack_cron}}
   crons_plone_backup={{cops_plone_has_backup_cron}}
+cops_plone_syslog_port: "10514"
 crons_plone_restart_periodicity: "50 23 5 * *"
 crons_plone_pack_periodicity: "0 5 * * *"
 crons_plone_backup_periodicity: "0 2 * * *"
