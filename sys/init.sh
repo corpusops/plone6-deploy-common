@@ -106,7 +106,7 @@ export HOST_USER_UID="${HOST_USER_UID:-$(id -u $APP_USER)}"
 export INIT_HOOKS_DIR="${INIT_HOOKS_DIR:-${BASE_DIR}/sys/scripts/hooks}"
 export APP_GROUP="${APP_GROUP:-$APP_USER}"
 export EXTRA_USER_DIRS="${EXTRA_USER_DIRS-}"
-export USER_DIRS="${USER_DIRS:-". .tox src src.ext data /data $CRON_LOGS_DIRS $LOCAL_DIR ${EXTRA_USER_DIRS} /home/${APP_USER}/.ssh /home/${APP_USER}"}"
+export USER_DIRS="${USER_DIRS:-". .tox src sources data /data $CRON_LOGS_DIRS $LOCAL_DIR ${EXTRA_USER_DIRS} /home/${APP_USER}/.ssh /home/${APP_USER}"}"
 export SHELL_USER="${SHELL_USER:-${APP_USER}}" SHELL_EXECUTABLE="${SHELL_EXECUTABLE:-/bin/bash}"
 export SKIP_REGEN_EGG_INFO="${SKIP_REGEN_EGG_INFO-}"
 
@@ -180,7 +180,7 @@ configure() {
     # without having a chance to be built
     if [[ -z "${SKIP_REGEN_EGG_INFO-}" ]];then
         while read f;do regen_egg_info "$f";done < <( \
-            find "$TOPDIR/setup.py" "$TOPDIR/src" "$TOPDIR/src.ext" \
+            find "$TOPDIR/setup.py" "$TOPDIR/src" "$TOPDIR/sources" \
             -maxdepth 2 -mindepth 0 -name setup.py -type f 2>/dev/null; )
     fi
     # In dev, regenerate mx_dev checkouts
@@ -378,7 +378,7 @@ compile_messages() {
     # patch compile_messages to also build local pots
     sed -i -re "s:/var/log:/data/logs:" $c
     if ! (grep -q "itertools" $c );then sed -i -re "s/(import os)/import itertools;import os/g" $c;fi
-    if ! (grep -q "Path('src').resolve" $c );then sed -i -re "s/ (lib_path\.glob.*)$/ itertools.chain(\1,Path('src').resolve().glob('**\/*.po'),Path('src.ext').resolve().glob('**\/*.po'))/g" $c;fi
+    if ! (grep -q "Path('src').resolve" $c );then sed -i -re "s/ (lib_path\.glob.*)$/ itertools.chain(\1,Path('src').resolve().glob('**\/*.po'),Path('sources').resolve().glob('**\/*.po'))/g" $c;fi
     # compiles messages
     python $c
 }
