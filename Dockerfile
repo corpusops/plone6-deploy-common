@@ -175,7 +175,7 @@ RUN \
     && : "$(date) end"'
 
 # Handle images refresh (rebuild from BASE_IMAGE where BASE_IMAGE is an older version of this image)
-RUN for i in keys/* $DOCS_FOLDERS init sys local/${APP_TYPE}-deploy-common .git public/static/* sources src private \
+RUN for i in keys/* $DOCS_FOLDERS init sys local/${APP_TYPE}-deploy-common .git public/static/* sources src \
              setup.* *.ini *.rst *.md *.txt README* requirements* \
     ;do if ! ( echo "$i" | egrep -q "pip_reqs.txt" );then ( rm -vrf $i || true );fi;done
 
@@ -186,7 +186,6 @@ ADD --chown=${APP_TYPE}:${APP_TYPE} sources sources/
 ADD --chown=${APP_TYPE}:${APP_TYPE} setup.* *.ini *.rst *.md *.txt README* requirements* ./
 # only bring minimal app for now as we get only deps (CI optims)
 ADD --chown=${APP_TYPE}:${APP_TYPE} src      ./src/
-ADD --chown=${APP_TYPE}:${APP_TYPE} private  ./private/
 ADD --chown=${APP_TYPE}:${APP_TYPE} local/${APP_TYPE}-deploy-common/sys/init.sh init/
 ADD --chown=${APP_TYPE}:${APP_TYPE} sys/*t*s*                                   init/
 ADD --chown=${APP_TYPE}:${APP_TYPE} sys/ssh/*                                   sys/ssh/
