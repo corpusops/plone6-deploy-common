@@ -170,6 +170,7 @@ _shell() {
 #  configure: generate configs from template at runtime
 configure() {
     if [[ -n ${NO_CONFIGURE-} ]];then return 0;fi
+    for i in /run/rsyslo{g,gd}.pid;do if [ -e $i ];then rm -f$VCOMMAND $i ;fi;done
     for i in $USER_DIRS;do
         if [ ! -e "$i" ];then mkdir -p "$i" >&2;fi
         chown $APP_USER:$APP_GROUP "$i"
@@ -336,6 +337,7 @@ write_inituser() {
 
 do_fg() {
     write_inituser
+    ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
     gosu $APP_USER bash -c "set -ex\
     && export TYPE=$PLONE_TYPE SITE=$PLONE_SITE PROFILES=$PLONE_PROFILES \
     && exec ./docker-entrypoint.sh start"
@@ -418,7 +420,6 @@ if [[ "${IMAGE_MODE}" != "shell" ]]; then
     log "Running in $IMAGE_MODE mode"
     if [ -e "$STARTUP_LOG" ];then cat "$STARTUP_LOG";fi
     if [[ "$IMAGE_MODE" = "fg" ]]; then
-        ( SUPERVISORD_CONFIGS="rsyslog" exec supervisord.sh )&
         do_fg
     else
         # we have two types of CRONTABS, one dedicated to backup and one to application
