@@ -7,9 +7,9 @@ RLOG={{$bd}}/data/logs/cron/cronr.log
 PLONE_PACK_DAYS={{ .Env.PLONE_PACK_DAYS | default "7" }}
 MAILTO=""
 
-{{ (((.Env.crons_plone_pack | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_pack_periodicity    | default "0 5 * * *" }} plone /bin/bash -c "date -Iseconds>$RLOG;if [ ! -e {{$sc}} ];then cd /app &&                          bin/fullbackup &>> $RLOG;fi;date -Iseconds>>$RLOG"
-
 {{ (((.Env.crons_plone_backup | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
-{{    .Env.crons_plone_backup_periodicity  | default "0 2 * * *" }} plone /bin/bash -c "date -Iseconds>$PLOG;if [ ! -e {{$sc}} ];then cd /app && bin/zeopack -d $PLONE_PACK_DAYS db:8100 &>> $PLOG;fi;date -Iseconds>>$PLOG"
+{{    .Env.crons_plone_backup_periodicity    | default "0 5 * * *" }} plone /bin/bash -c "date -Iseconds>$RLOG;if [ ! -e {{$sc}} ];then cd /app && if [ -e bin/fullbackup ];then script="bin/fullbackup";else script="bin/backup";fi;\$script &>> $RLOG;fi;date -Iseconds>>$RLOG"
+
+{{ (((.Env.crons_plone_pack | default "false" )| lower ) | eq  "true" ) | ternary "" "#" -}}
+{{    .Env.crons_plone_pack_periodicity  | default "0 2 * * *" }} plone /bin/bash -c "date -Iseconds>$PLOG;if [ ! -e {{$sc}} ];then cd /app && bin/zeopack -d $PLONE_PACK_DAYS db:8100 &>> $PLOG;fi;date -Iseconds>>$PLOG"
 
