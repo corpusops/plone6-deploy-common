@@ -13,6 +13,7 @@ SDEBUG=${SDEBUG-}
 DEBUG=${DEBUG:-${SDEBUG-}}
 VCOMMAND=""
 DASHVCOMMAND=""
+export RSYNC_HARD_LINKS_ON_FIRST_COPY="${RSYNC_HARD_LINKS_ON_FIRST_COPY:-True}"
 export SHELL_USER="${SHELL_USER:-root}" SHELL_EXECUTABLE="${SHELL_EXECUTABLE:-/bin/bash}"
 export PLONE_DATA_DIR="${PLONE_DATA_DIR:-/data}"
 export PLONE_BACKUP_DIR="${PLONE_BACKUP_DIR:-/backup}"
@@ -67,6 +68,7 @@ for i in $PLONE_DATA_DIR/*;do setupdir $i;done
 for i in bin/snapshotbackup bin/fullbackup bin/backup bin/snapshotrestore bin/restore;do
     if [ -e $i ];then
         sed -i -re "s/=$DEFAULT_PLONE_BACKUP_KEEP_DAYS,/=$PLONE_BACKUP_KEEP_DAYS,/g;" "$i"
+        sed -i -re "s/rsync_hard_links_on_first_copy=(True|False)/rsync_hard_links_on_first_copy=$RSYNC_HARD_LINKS_ON_FIRST_COPY/g" "$i"
     fi
 done
 # upstream logs to stdout
